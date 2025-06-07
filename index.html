@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Spotify 토큰 연동 리듬게임 데모</title>
+<style>
+  body {
+    margin: 0; background: #121212; color: white; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh;
+  }
+  #gameArea {
+    position: relative;
+    width: 360px;
+    height: 600px;
+    background: #222;
+    border-radius: 10px;
+    overflow: hidden;
+    user-select: none;
+  }
+  .note {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-radius: 30px;
+    background: #1db954;
+    opacity: 0.8;
+    pointer-events: none;
+    animation: fadeOut 1s forwards;
+  }
+  @keyframes fadeOut {
+    to {
+      opacity: 0;
+      transform: scale(2);
+    }
+  }
+  #trackInfo {
+    margin-bottom: 12px;
+    font-size: 18px;
+  }
+</style>
+</head>
+<body>
+
+<div id="trackInfo">현재 재생 중인 곡 정보 불러오는 중...</div>
+<div id="gameArea"></div>
+
+<script>
+  const accessToken = 'YOUR_ACCESS_TOKEN_HERE'; // 여기 네 실제 Spotify Access Token 넣어
+  const apiBase = 'https://api.spotify.com/v1';
+
+  const gameArea = document.getElementById('gameArea');
+  const trackInfo = document.getElementById('trackInfo');
+
+  // 현재 재생 중인 트랙 정보 불러오기
+  async function fetchCurrentlyPlaying() {
+    try {
+      const res = await fetch(apiBase + '/me/player/currently-playing', {
+        headers: {
+          Authorization: 'Bearer ' + accessToken
+        }
+      });
+      if (res.status === 204 || res.status > 400) {
+        trackInfo.textContent = '현재 재생 중인 곡이 없습니다.';
+        return;
+      }
+      const data = await res.json();
+      if (data && data.item) {
+        const artists = data.item.artists.map(a => a.name).join(', ');
+        trackInfo.textContent = `현재 재생 중: ${data.item.name} — ${artists}`;
+      } else {
+        trackInfo.textContent = '현재 재생 중인 곡 정보를 가져올 수 없습니다.';
+      }
+    } catch (e) {
+      trackInfo.textContent = '오류 발생: ' + e.message;
+    }
+  }
+
+  fetchCurrentlyPlaying();
+
+  // 클릭 시 이펙트 + 소리
+  gameArea.addEventListener('click', (e) => {
+    const rect = gameArea.getBoundingClientRect();
+    const x = e.clientX - rect.left - 30;
+    const y = e.clientY - rect.top - 30;
+
+    const note = document.createElement('div');
+    note.className = 'note';
+    note.style.left = x + 'px';
+    note.style.top = y + 'px';
+    gameArea.appendChild(note);
+
+    setTimeout(() => {
+      gameArea.removeChild(note);
+    }, 1000);
+
+    playBeep();
+  });
+
+  function playBeep() {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.1);
+  }
+</script>
+
+</body>
+</html>
